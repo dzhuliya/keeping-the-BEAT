@@ -69,5 +69,5 @@ fluxsigma = 3. # minimum flux height for multinest prior (i.e. 3*sigma)
 
 target = "ic5063"
 
-basepath = '/home/dashtamirova/IC5063/ic5063'
+basepath = ''
 
