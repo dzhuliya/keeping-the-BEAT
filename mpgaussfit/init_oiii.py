@@ -55,7 +55,7 @@ wave_range = 20.0 # wavelength prior space range (maxwave = minwave + wave_range
 
 
 
-minwidth = 1.67 # minimum line width for multinest prior ; R ~ 3000 @ 5008A
+minwidth = 1.3 # minimum line width for multinest prior ; R ~ 3000 @ 5008A
 
 maxwidth = 33.83 # maximum line width for multinest prior ; 2000 km/s
 
@@ -66,8 +66,9 @@ maxwidth2 = 45.0
 fluxsigma = 3. # minimum flux height for multinest prior (i.e. 3*sigma)
 
 
+target = ""
 
-target = "ic5063"
+spec_dir = ""
 
-basepath = ""
+out_dir = ""
 

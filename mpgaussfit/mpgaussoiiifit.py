@@ -8,30 +8,35 @@ import shutil
 import glob
 import time
 import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg')
 
 # Define a start time of the run.
 start_time = time.time()
 
 # Get a listing of the spectra involved in this run.
-basepath = init.basepath
-specpath = os.path.join(basepath, 'indata', init.target, 'spectra')
-# specpath = os.path.join(basepath, 'indata', init.target, 'testspec')
+basepath = init.out_dir
+specpath = init.spec_dir
+target = init.target
 listing = sorted(os.listdir(specpath))
-for index in reversed(range(len(listing))):
-    filename = listing[index]
-    filebase = filename.split('.')[0]
-    column = int(filebase.split('_')[1])
-    row = int(filebase.split('_')[2])
-
-    # if column < 162 or column > 162 or row < 159 or row > 161:
-    #     listing.pop(index)
 
 # Provide some names and values for the lines that are being fit here.
-## Why are these not vacuum wavelengths?
 lines = {
     'H-beta': 4861.3,
     '[O III] 4959': 4958.92,
     '[O III] 5007': 5006.84}
+
+
+def make_dirs():
+    """make directory structure for output data"""
+    if not os.path.exists(os.path.join(basepath, f'{target}_out')):
+        os.mkdir(os.path.join(basepath, f'{target}_out'))
+
+    if not os.path.exists(os.path.join(basepath, f'{target}_out', 'out')):
+        os.mkdir(os.path.join(basepath, f'{target}_out', 'out'))
+
+    if not os.path.exists(os.path.join(basepath, f'{target}_out', 'plots')):
+        os.mkdir(os.path.join(basepath, f'{target}_out', 'plots'))
 
 #==============================================================================
 # Define the Gaussian models.
@@ -203,13 +208,13 @@ def mp_worker(index):
     row = infilebase.split('_')[2] # spaxel row coordinate (y)
 
     inspecpath = os.path.join(specpath, infile)
-    outspecpath = os.path.join(basepath, 'indata', init.target, 'donespec',
-                               infile)
-    data_outfile = os.path.join(basepath, 'outdata', init.target, 'out',
+    # outspecpath = os.path.join(basepath, 'indata', init.target, 'donespec',
+                               # infile)
+    data_outfile = os.path.join(basepath, f'{target}_out', 'out',
                                 f'{infilebase}_{init.line}')
-    plot_outfile = os.path.join(basepath, 'outdata', init.target, 'plots',
+    plot_outfile = os.path.join(basepath, f'{target}_out', 'plots',
                                 f'{infilebase}_{init.line}')
-    line_outfile = os.path.join(basepath, 'outdata', init.target,
+    line_outfile = os.path.join(basepath, f'{target}_out',
                                 f'{init.target}_{init.line}.txt')
 
     # Read in the data and start to cut it into the appropriate useful bits.
@@ -300,11 +305,15 @@ def mp_worker(index):
 
 
 def mp_handler():
-    pool = mp.Pool(processes=mp.cpu_count()-1)
+    pool = mp.Pool(processes=3)
     pool.map(mp_worker, range(len(listing)))
 
 
-if __name__ == '__main__':
-
+def main():
+    make_dirs()
     mp_handler()
     print('--- {0} seconds ---'.format(time.time() - start_time))
+
+
+if __name__ == '__main__':
+    main()
