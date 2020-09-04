@@ -1,4 +1,3 @@
-# import init_oiii as init
 import pymultinest
 import multiprocessing as mp
 import numpy as np
