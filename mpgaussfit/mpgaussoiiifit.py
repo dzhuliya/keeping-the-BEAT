@@ -1,6 +1,7 @@
 import pymultinest
 import multiprocessing as mp
 import numpy as np
+import pandas as pd
 import sys
 import os
 import shutil
@@ -38,6 +39,7 @@ class Fit(object):
         self.upp2 = upp2
         self.line = line
         self.orig_wave = orig_wave
+        self.cat = None
 
         self.listing = sorted(os.listdir(self.specpath))
 
@@ -50,7 +52,7 @@ class Fit(object):
 
     def make_dirs(self):
         """make directory structure for output data"""
-        print('making_dirs')
+        # print('making_dirs')
         if not os.path.exists(os.path.join(self.basepath, f'{self.target}_out')):
             os.mkdir(os.path.join(self.basepath, f'{self.target}_out'))
 
@@ -59,6 +61,9 @@ class Fit(object):
 
         if not os.path.exists(os.path.join(self.basepath, f'{self.target}_out', 'plots')):
             os.mkdir(os.path.join(self.basepath, f'{self.target}_out', 'plots'))
+
+        if not os.path.exists(os.path.join(self.basepath, f'{self.target}_out', f'{self.target}_{self.line}.txt')):
+            self.init_cat()
 
     # ==============================================================================
     # Define the Gaussian models.
@@ -134,15 +139,22 @@ class Fit(object):
     # ==============================================================================
 
     # This write function is not yet universal
-    def write_result(self, ncomp, maxcomp, outmodel):
-        with open(line_outfile, 'a') as f:
-            entries = ([column, row, ncomp, avg, *outmodel]
-                       + [0] * ((maxcomp - ncomp) * 3))
-            strtowrite = ('{:3s} {:3s} | {:1d} | {:7.2f}'
-                          + maxcomp * ' | {:8.3f} {:6.3f} {:9.3e}'
-                          + '\n')
-            f.write(strtowrite.format(*entries))
-        print(f'Best Fit: {ncomp} Components')
+    def write_result(self, index, ncomp, maxcomp, outmodel):
+        cat_file = os.path.join(self.basepath, f'{self.target}_out', f'{self.target}_{self.line}.txt')
+        cat = pd.read_csv(cat_file, index_col='index')
+        # print(f'CAT OPEN {cat}')
+        use_col = cat.columns[2:len(outmodel)+2].tolist()
+        print("COLUMNS USED")
+        print(use_col)
+        for i, mod in enumerate(outmodel):
+            cat.at[index, use_col[i]] = mod
+            print(f'index = {index}, col = {use_col[i]}, model = {mod} ')
+        cat.at[index, 'ncomps'] = ncomp
+        # cat.at[index, 'avg'] = avg
+        # print(f'NEW CAT {cat}')
+        cat.to_csv(cat_file, index_label='index')
+
+        # print(f'Best Fit: {ncomp} Components')
 
     # still need to define the colorlist, which also needs to be able to cycle
     # to allow for high number of components
@@ -193,6 +205,42 @@ class Fit(object):
             except:
                 print(f"Error while deleting '{file}'")
 
+    def get_pix(self, row_ind):
+        # print('GET PIX')
+        # print(row_ind)
+        fil = self.listing[int(row_ind['index'])]
+        infilebase = fil.split('.')[0]
+        column = infilebase.split('_')[1]  # spaxel column coordinate (x)
+        row = infilebase.split('_')[2]  # spaxel row coordinate (y)
+        return f'{column}_{row}'
+
+
+    def init_cat(self):
+        """blank output catalogue. """
+        cols = ["index", "pixel", "ncomps", "wave_1", "width_1", "flux_1",
+                "wave_2", "width_2", "flux_2", "wave_3", "width_3", "flux_3"]
+
+        self.cat = pd.DataFrame(np.zeros((len(self.listing), len(cols))),
+                                columns=cols)
+        self.cat.loc[:,'ncomps'] = -1
+
+        self.cat["index"] = self.cat.index
+
+        outfile = os.path.join(self.basepath, f'{self.target}_out',
+                                    f'{self.target}_{self.line}.txt')
+
+        self.cat['pixel'] = self.cat.apply(self.get_pix, axis=1)
+
+        self.cat.to_csv(outfile, index=False)
+
+    def find_unfit(self):
+        open_cat = pd.read_csv(os.path.join(self.basepath, f'{self.target}_out',
+                                    f'{self.target}_{self.line}.txt'))
+        indices = list(np.where(open_cat["ncomps"]==-1)[0])
+        return indices
+
+
+
     # ==============================================================================
     # Define the primary fitting routine
     # ==============================================================================
@@ -224,6 +272,7 @@ class Fit(object):
         inspecpath = os.path.join(self.specpath, infile)
         # outspecpath = os.path.join(basepath, 'indata', init.target, 'donespec',
         # infile)
+
         data_outfile = os.path.join(self.basepath, f'{self.target}_out', 'out',
                                     f'{infilebase}_{self.line}')
         plot_outfile = os.path.join(self.basepath, f'{self.target}_out', 'plots',
@@ -304,7 +353,7 @@ class Fit(object):
             else:
                 break
 
-        self.write_result(bestncomp, maxcomp, outmodels[bestncomp])
+        self.write_result(index, bestncomp, maxcomp, outmodels[bestncomp])
 
         print(f'Average Continuum = {avg:.2f}')
         print(f'Standard deviation = {stdev:.4f}')
@@ -318,5 +367,7 @@ class Fit(object):
                                                      '*resume.dat'])
 
     def mp_handler(self):
+        unfit_pix = self.find_unfit()
+        print(f'remaining to fit: {unfit_pix}')
         pool = mp.Pool(processes=3)
-        pool.map(self.mp_worker, range(len(self.listing)))
+        pool.map(self.mp_worker, unfit_pix)
