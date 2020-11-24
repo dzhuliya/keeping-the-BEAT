@@ -17,11 +17,12 @@ matplotlib.use('Agg')
 
 class Fit(object):
 
-    def __init__(self, out_dir, spec_dir, target, red, minwave, wave_range, minwidth, maxwidth, start, end, plotmin,
+    def __init__(self, out_dir, spec_dir, load_file, target, red, minwave, wave_range, minwidth, maxwidth, start, end, plotmin,
                  plotmax, fluxsigma, low1, low2, upp1, upp2, line, orig_wave):
         # Get a listing of the spectra involved in this run.
         self.basepath = out_dir
         self.specpath = spec_dir
+        self.load_file = load_file
         self.target = target
         self.red = red
         self.minwave = minwave
@@ -144,11 +145,11 @@ class Fit(object):
         cat = pd.read_csv(cat_file, index_col='index')
         # print(f'CAT OPEN {cat}')
         use_col = cat.columns[2:len(outmodel)+2].tolist()
-        print("COLUMNS USED")
-        print(use_col)
+        # print("COLUMNS USED")
+        # print(use_col)
         for i, mod in enumerate(outmodel):
             cat.at[index, use_col[i]] = mod
-            print(f'index = {index}, col = {use_col[i]}, model = {mod} ')
+            # print(f'index = {index}, col = {use_col[i]}, model = {mod} ')
         cat.at[index, 'ncomps'] = ncomp
         # cat.at[index, 'avg'] = avg
         # print(f'NEW CAT {cat}')
@@ -176,8 +177,10 @@ class Fit(object):
         # velocity of the system.
         ax.axvline(systemic, 0, 1, ls='--', lw=0.5, color='blue', zorder=0)
         # Plot the ranges from where the continuum was sampled.
-        ax.axvspan(wave[self.low1], wave[self.upp1], facecolor='black', alpha=0.1)
-        ax.axvspan(wave[self.low2], wave[self.upp2], facecolor='black', alpha=0.1)
+        # ax.axvspan(wave[self.low1], wave[self.upp1], facecolor='black', alpha=0.1)
+        # ax.axvspan(wave[self.low2], wave[self.upp2], facecolor='black', alpha=0.1)
+        ax.axvspan(self.low1, self.upp1, facecolor='black', alpha=0.1)
+        ax.axvspan(self.low2, self.upp2, facecolor='black', alpha=0.1)
         # Plot the best fit model.
         ax.plot(x, self.model(*outmodel), '-', lw=1, color='black', label='model',
                 zorder=3)
@@ -209,7 +212,9 @@ class Fit(object):
         # print('GET PIX')
         # print(row_ind)
         fil = self.listing[int(row_ind['index'])]
+        print(f'fil:{fil}')
         infilebase = fil.split('.')[0]
+        print(f'infilebase:{infilebase}')
         column = infilebase.split('_')[1]  # spaxel column coordinate (x)
         row = infilebase.split('_')[2]  # spaxel row coordinate (y)
         return f'{column}_{row}'
@@ -246,6 +251,7 @@ class Fit(object):
     # ==============================================================================
 
     def mp_worker(self, index):
+
         # Set the variables that will be used directly within the functions below
         # rather than passing them in as arguments.
         global x, ydata, miny, maxy, avg, stdev, noise, wave, threesigma
@@ -265,11 +271,13 @@ class Fit(object):
 
         # Set the filename and filepaths for the various inputs and outputs.
         infile = self.listing[index]
-        infilebase = infile.split('.')[0]
-        column = infilebase.split('_')[1]  # spaxel column coordinate (x)
-        row = infilebase.split('_')[2]  # spaxel row coordinate (y)
-
         inspecpath = os.path.join(self.specpath, infile)
+        row, column, wave, flux, noise = self.load_file(inspecpath)
+        infilebase = infile.split('.')[0]
+
+        # column = infilebase.split('_')[1]  # spaxel column coordinate (x)
+        # row = infilebase.split('_')[2]  # spaxel row coordinate (y)
+
         # outspecpath = os.path.join(basepath, 'indata', init.target, 'donespec',
         # infile)
 
@@ -281,7 +289,7 @@ class Fit(object):
                                     f'{self.target}_{self.line}.txt')
 
         # Read in the data and start to cut it into the appropriate useful bits.
-        wave, flux, noise = np.loadtxt(inspecpath, usecols=(0, 1, 2), unpack=True, delimiter=',')
+        # wave, flux, noise = np.loadtxt(inspecpath, usecols=(0, 1, 2), unpack=True, delimiter=',')
 
         x = wave[self.start:self.end]
         ydata = flux[self.start:self.end]
@@ -290,8 +298,13 @@ class Fit(object):
         miny = min(ydata)
         ypadding = .05 * (maxy - miny)
         systemic = (1. + self.red) * self.orig_wave
-        cont1 = flux[self.low1:self.upp1]
-        cont2 = flux[self.low2:self.upp2]
+        low1_ind = (np.abs(wave - self.low1)).argmin()
+        upp1_ind = (np.abs(wave - self.upp1)).argmin()
+        low2_ind = (np.abs(wave - self.low2)).argmin()
+        upp2_ind = (np.abs(wave - self.upp2)).argmin()
+        cont1 = flux[low1_ind:upp1_ind]
+        cont2 = flux[low2_ind:upp2_ind]
+
         avg = (np.median(cont1) + np.median(cont2)) / 2
         ### should we re-evaluate the stdev of the continuum now that there is
         ### reported error?
@@ -368,6 +381,6 @@ class Fit(object):
 
     def mp_handler(self):
         unfit_pix = self.find_unfit()
-        print(f'remaining to fit: {unfit_pix}')
+        print(f'remaining to fit: {len(unfit_pix)}')
         pool = mp.Pool(processes=3)
         pool.map(self.mp_worker, unfit_pix)
