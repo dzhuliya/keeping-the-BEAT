@@ -53,7 +53,6 @@ class Fit(object):
 
     def make_dirs(self):
         """make directory structure for output data"""
-        # print('making_dirs')
         if not os.path.exists(os.path.join(self.basepath, f'{self.target}_out')):
             os.mkdir(os.path.join(self.basepath, f'{self.target}_out'))
 
