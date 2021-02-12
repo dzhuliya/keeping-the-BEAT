@@ -5,15 +5,8 @@ import pymultinest
 import multiprocessing as mp
 import numpy as np
 import pandas as pd
-import sys
 import os
-import shutil
 import glob
-import time
-# import matplotlib.pyplot as plt
-# import matplotlib
-# matplotlib.use('Agg')
-
 
 # TO DO change plot min and max back
 
