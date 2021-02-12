@@ -33,10 +33,13 @@ good luck!!!
 
 How to get started
 ------------------
-A jupyter notebook is provided to run through an example fit using files included
-when you clone the repository. You can now open the jupyter notebook and follow
-the instructions in the notebook. (additional documentation will be added to this
-page later).
+A
+`jupyter notebook <https://github.com/dzhuliya/keeping-the-BEAT/blob/master/keeping-the-BEAT/beat_example.ipynb>`_ 
+is provided to run through an example fit using
+`files <https://github.com/dzhuliya/keeping-the-BEAT/tree/master/keeping-the-BEAT/spectra>`_
+included when you clone the repository. You can now open the jupyter notebook
+and follow the instructions in the notebook. (additional documentation will be
+added to this page later).
 
 .. toctree::
    :maxdepth: 2
