@@ -1,4 +1,4 @@
 # Keeping the BEAT
------testing-------
+-----in progress-------
 
-check out docs https://keeping-the-beat.readthedocs.io 
+check out our docs: https://keeping-the-beat.readthedocs.io 
