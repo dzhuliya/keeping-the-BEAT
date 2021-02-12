@@ -33,6 +33,8 @@ class Fit(object):
         fit_instructions : dict
             Dictionary that contains information for line(s) to be fit, fitting preferences, and general target
             and plotting information
+        target_param : dict
+            Dictionary that contains information general target information, fitting preferences and plotting info
     """
 
     def __init__(self, out_dir, spec_dir, load_file, fit_instructions, target_param):
@@ -59,11 +61,6 @@ class Fit(object):
         if not os.path.exists(os.path.join(self.basepath, f'{self.target_param["name"]}_out', 'plots')):
             os.mkdir(os.path.join(self.basepath, f'{self.target_param["name"]}_out', 'plots'))
 
-        # LOOK OVER THIS AGAIN
-        # for line in self.fit_instructions:
-            # if not os.path.exists(os.path.join(self.basepath, f'{self.target_param["name"]}_out',
-                                               # f'{self.target_param["name"]}_{self.fit_instructions[line]["name"]}.txt')):
-                # self.init_cat(line=self.fit_instructions[line]["name"])
         if not os.path.exists(os.path.join(self.basepath, f'{self.target_param["name"]}_out',
                                         f'{self.target_param["name"]}_{self.fit_instructions["line1"]["name"]}.txt')):
             self.init_cat()
@@ -84,8 +81,6 @@ class Fit(object):
         flux_all = []
         lines = []
         args = list(args)
-        # unpack args ? and map them to 'free' lines ?
-
         for line in self.fit_instructions:
             lines.append(line)  # keeping track of what lines have been fit
             pos = (pos1 - ((1 + self.target_param['red']) * (self.fit_instructions['line1']['wave']
@@ -200,7 +195,7 @@ class Fit(object):
                         zorder=2)
         ax.set_title(f'Pixel ({column:3s}, {row:3s}) -- {ncomp} Components')
         ax.set_xlabel('Wavelength ($\mathrm{\AA}$)')
-        ax.set_ylabel('Flux ($\mathrm{10^{-20}\ erg\ s^{-1}\ cm^{-2}\ \AA^{-1}}$)')
+        ax.set_ylabel('Flux ($\erg\ s^{-1}\ cm^{-2}\ \AA^{-1}}$)')
         fig.savefig(plot_outfile + f'_{ncomp}_posterior.pdf')
         plt.close()
 
@@ -356,7 +351,7 @@ class Fit(object):
             # plot best fit
             self.make_model_plot(ncomp, outmodels[ncomp], lnZs[ncomp])
 
-            if lnZs[ncomp] - lnZs[bestncomp] > 5.0:
+            if lnZs[ncomp] - lnZs[bestncomp] > self.target_param["lnz"]:
                 bestncomp = ncomp
             else:
                 break
