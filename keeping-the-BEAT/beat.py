@@ -188,7 +188,7 @@ class Fit(object):
                         zorder=2)
         ax.set_title(f'Pixel ({column:3s}, {row:3s}) -- {ncomp} Components')
         ax.set_xlabel('Wavelength ($\mathrm{\AA}$)')
-        ax.set_ylabel('Flux ($\erg\ s^{-1}\ cm^{-2}\ \AA^{-1}}$)')
+        ax.set_ylabel('Flux ($erg\ s^{-1}\ cm^{-2}\ \AA^{-1}}$)')
         fig.savefig(plot_outfile + f'_{ncomp}_posterior.pdf')
         plt.close()
 
@@ -216,9 +216,9 @@ class Fit(object):
 
     def get_pix(self, row_ind):
         fil = self.listing[int(row_ind['index'])]
-        print(f'fil:{fil}')
+        # print(f'fil:{fil}')
         infilebase = fil.split('.')[0]
-        print(f'infilebase:{infilebase}')
+        # print(f'infilebase:{infilebase}')
         column = infilebase.split('_')[1]  # spaxel column coordinate (x)
         row = infilebase.split('_')[2]  # spaxel row coordinate (y)
         return f'{column}_{row}'
@@ -297,9 +297,9 @@ class Fit(object):
 
         # ------ CONTINUUM FIT ------
 
-        print(f'Pixel: {column}, {row}')
-        print(f'Min Y: {miny}')
-        print(f'Max Y: {maxy}')
+        print(f'Fitting Pixel: {column}, {row}')
+        print(f'Min Y: {miny:.2e}')
+        print(f'Max Y: {maxy:.2e}')
 
         # Set the number of dimensions of this model
         ncomp = 0
@@ -315,7 +315,7 @@ class Fit(object):
                         verbose=False)
         analyzers[ncomp] = pymultinest.Analyzer(
             outputfiles_basename=f'{data_outfile}_{ncomp}_',
-            n_params=n_params)
+            n_params=n_params, verbose=False)
         lnZs[ncomp] = analyzers[ncomp].get_stats()['global evidence']
         outmodels[ncomp] = analyzers[ncomp].get_best_fit()['parameters']
 
@@ -327,8 +327,8 @@ class Fit(object):
 
         # Now try increased number of components.
         for ncomp in range(1, maxcomp + 1):
+            print(f'Pixel: {column}, {row} trying {ncomp} component(s)')
             n_params = 3 * ncomp
-            print(f'Pixel: {column}, {row}')
 
             # run MultiNest
             pymultinest.run(self.loglike, self.prior, n_params,
@@ -337,7 +337,7 @@ class Fit(object):
                             verbose=False)
             analyzers[ncomp] = pymultinest.Analyzer(
                 outputfiles_basename=f'{data_outfile}_{ncomp}_',
-                n_params=n_params)
+                n_params=n_params, verbose=False)
             lnZs[ncomp] = analyzers[ncomp].get_stats()['global evidence']
             outmodels[ncomp] = analyzers[ncomp].get_best_fit()['parameters']
 
@@ -351,8 +351,9 @@ class Fit(object):
 
         self.write_results(index, bestncomp, outmodels[bestncomp])
 
-        print(f'Average Continuum = {avg:.2f}')
-        print(f'Standard deviation = {stdev:.4f}')
+        print(f'Pixel: {column}, {row} fit with {bestncomp} components')
+        print(f'Average Continuum = {avg:.2e}')
+        print(f'Standard deviation = {stdev:.4e}')
 
 
         # Delete extraneous outfiles
@@ -364,5 +365,5 @@ class Fit(object):
         # make mp optional
         unfit_pix = self.find_unfit()
         print(f'remaining to fit: {len(unfit_pix)}')
-        pool = mp.Pool(processes=self.fit_instructions["cores"])
+        pool = mp.Pool(processes=self.target_param["cores"])
         pool.map(self.mp_worker, unfit_pix)
