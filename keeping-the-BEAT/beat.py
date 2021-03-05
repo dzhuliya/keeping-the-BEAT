@@ -115,7 +115,7 @@ class Fit(object):
                                + cube[i + 1] * (self.target_param['maxwidth'] - self.target_param['minwidth']))
                 # log-uniform flux prior
                 for fprior in range(0, self.free_lines):
-                    cube[i + fprior + 2] = (threesigma) * np.power(10, cube[i + fprior + 2] * 4) # MADE A CHANGE
+                    cube[i + fprior + 2] = threesigma * np.power(10, cube[i + fprior + 2] * 4) # MADE A CHANGE
 
                 # need more flux priors depending on fluxes we have
                 # number of flux priors is same as number of free lines
@@ -284,7 +284,7 @@ class Fit(object):
         ### should we re-evaluate the stdev of the continuum now that there is
         ### reported error?
         stdev = (np.std(cont1) + np.std(cont2)) / 2  # stnd dev of continuum flux
-        threesigma = (3. * stdev)  # * init.minwidth * np.sqrt(2*np.pi)
+        threesigma = (self.target_param["fluxsigma"] * stdev)  # * init.minwidth * np.sqrt(2*np.pi)
         # noise = stdev * np.sqrt((abs(ydata) / abs(avg))) # signal dependant noise
 
         # Set the maximum number of components that this program will model
@@ -328,7 +328,7 @@ class Fit(object):
         # Now try increased number of components.
         for ncomp in range(1, maxcomp + 1):
             print(f'Pixel: {column}, {row} trying {ncomp} component(s)')
-            n_params = 3 * ncomp
+            n_params = (2 + self.free_lines) * ncomp
 
             # run MultiNest
             pymultinest.run(self.loglike, self.prior, n_params,
