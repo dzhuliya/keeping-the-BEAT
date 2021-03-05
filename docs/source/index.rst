@@ -22,6 +22,8 @@ For the time being you should clone the BEAT repository from our
 You will also need to have MultiNest/PyMultiNest installed on your machine.
 If you do not have MultiNest installed, follow the instructions found
 `here under "on your own computer" <http://johannesbuchner.github.io/pymultinest-tutorial/install.html>`_.
+If you are on MacOS, we recommend following the instructions found
+`here <https://www.astrobetter.com/wiki/MultiNest+Installation+Notes>`_.
 
 If you run into issues installing PyMultiNest with pip install, try:
 
@@ -29,7 +31,6 @@ If you run into issues installing PyMultiNest with pip install, try:
 
     conda install -c conda-forge pymultinest
 
-good luck!!!
 
 How to get started
 ------------------
