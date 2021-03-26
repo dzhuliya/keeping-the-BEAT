@@ -1,6 +1,6 @@
 Welcome to Keeping the BEAT's documentation!
 ============================================
-~**in progress**~
+~**in progress** ~
 =================
 
 The Bayesian Evidence Analysis Tool (BEAT) is a Python-based code for measuring
