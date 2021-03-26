@@ -1,5 +1,3 @@
-.. _customizing-your-fits:
-
 How to customize your fits
 ==========================
 
