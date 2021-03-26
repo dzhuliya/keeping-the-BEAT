@@ -1,6 +1,6 @@
 Welcome to Keeping the BEAT's documentation!
 ============================================
-~**in progress**~
+~**in progress** ~
 =================
 
 The Bayesian Evidence Analysis Tool (BEAT) is a Python-based code for measuring
@@ -86,14 +86,8 @@ added to this page later).
    :maxdepth: 1
    :hidden:
 
-    index.rst
-    customizing_your_fits.rst
-
-
+    customizing_your_fits
 
 Indices and tables
 ==================
-
 * :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

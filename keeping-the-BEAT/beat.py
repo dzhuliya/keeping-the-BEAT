@@ -230,7 +230,6 @@ class Fit(object):
         fil = self.listing[int(row_ind['index'])]
         # print(f'fil:{fil}')
         infilebase = fil.split('.')[0]
-        # print(f'infilebase:{infilebase}')
         column = infilebase.split('_')[1]  # spaxel column coordinate (x)
         row = infilebase.split('_')[2]  # spaxel row coordinate (y)
         return f'{column}_{row}'
