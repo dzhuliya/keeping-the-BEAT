@@ -108,21 +108,20 @@ class Fit(object):
         else:
             for i in range(0, ndim, 2 + self.free_lines):  # is this correct?? changed from 0,ndim,3
                 # uniform wavelength prior
-                cube[i + 0] = (self.fit_instructions['line1']['minwave'] + cube[i + 0]
-                               * self.fit_instructions['line1']['wave_range'])
+                cube[i + 0] = (self.fit_instructions['line1']['minwave'] + (cube[i + 0]
+                               * self.fit_instructions['line1']['wave_range']))
                 # uniform width prior
                 cube[i + 1] = (self.target_param['minwidth']
-                               + cube[i + 1] * (self.target_param['maxwidth'] - self.target_param['minwidth']))
+                               + (cube[i + 1] * (self.target_param['maxwidth'] - self.target_param['minwidth'])))
                 # log-uniform flux prior
                 for fprior in range(0, self.free_lines):
-                    cube[i + fprior + 2] = threesigma * np.power(10, cube[i + fprior + 2] * 4) # MADE A CHANGE
-
-                # need more flux priors depending on fluxes we have
-                # number of flux priors is same as number of free lines
+                    cube[i + fprior + 2] = threesigma * cube[i+1] * np.sqrt(2 * np.pi) * np.power(10, cube[i + fprior + 2] * 4)
+                    # cube[i + fprior + 2] = threesigma * np.power(10, cube[i + fprior + 2] * 4) # MADE A CHANGE
+                    # threesigma(which is stdev *3) * sigma(which is cube[i+1]) * sqrt(2 * pi) * np.power(10, cube[i + prior + 2] * 4 should be min area that is acceptable
 
     def model(self, *args):
         nargs = len(args)
-        if ((nargs != 1) and (nargs % (2 + self.free_lines) != 0)) or (nargs <= 0): # again is this 3 or 2 + free_lines
+        if ((nargs != 1) and (nargs % (2 + self.free_lines) != 0)) or (nargs <= 0):
             raise ValueError(
                 ('The number of arguments must be positive and equal to '
                  f'1 or a multiple of 3. nargs={nargs}'))
@@ -130,8 +129,8 @@ class Fit(object):
             result = np.zeros(self.target_param['end'] - self.target_param['start']) + args[0]
         else:
             result = np.zeros(self.target_param['end'] - self.target_param['start']) + avg
-            for i in range(0, nargs, 2 + self.free_lines): # again is this 3 or 2 + free_lines
-                result += self.gauss(*args[i:(i + (2 + self.free_lines))]) # 3 or 2 + free_lines
+            for i in range(0, nargs, 2 + self.free_lines):
+                result += self.gauss(*args[i:(i + (2 + self.free_lines))])
         return result
 
     def loglike(self, cube, ndim, nparams):
@@ -140,13 +139,20 @@ class Fit(object):
         loglikelihood = -0.5 * (((ymodel - ydata) / noise) ** 2).sum()
         return loglikelihood
 
-    def write_results(self, index, ncomp, outmodel):
+    def write_results(self, index, ncomp, outmodel, modelsigma):
         cat_file = os.path.join(self.basepath, f'{self.target_param["name"]}_out', f'{self.target_param["name"]}_'
                                 f'{self.fit_instructions["line1"]["name"]}.txt')
         cat = pd.read_csv(cat_file, index_col='index')
+
+
         use_col = cat.columns[2:len(outmodel) + 2].tolist()
         for i, mod in enumerate(outmodel):
             cat.at[index, use_col[i]] = mod
+
+        sigma_col = cat.columns[-len(modelsigma):].tolist()
+        for i, sig in enumerate(modelsigma):
+            cat.at[index, sigma_col[i]] = sig
+
         cat.at[index, 'ncomps'] = ncomp
         cat.to_csv(cat_file, index_label='index')
 
@@ -182,8 +188,8 @@ class Fit(object):
 
         # Draw the components of the model if ncomp > 1
         if ncomp > 1:
-            for i in range(0, 3 * ncomp, 3):
-                color = colorlist[(i // 3) % (len(colorlist))]
+            for i in range(0, (2 + self.free_lines) * ncomp, (2 + self.free_lines)):
+                color = colorlist[(i // 3) % (len(colorlist))] # should be max comp
                 ax.plot(x, self.model(*outmodel[i:(i + 2 + self.free_lines)]), '-', lw=0.75, color=color,
                         zorder=2)
         ax.set_title(f'Pixel ({column:3s}, {row:3s}) -- {ncomp} Components')
@@ -201,8 +207,14 @@ class Fit(object):
             cols.append(f'width_{i}')
             for flux in range(1, self.free_lines + 1):
                 cols.append(f'flux_{i}_{chr(ord("@") + flux)}')
-        self.cat = pd.DataFrame(np.zeros((len(self.listing), len(cols))),
-                                columns=cols)
+
+        for i in range(1, self.target_param["maxcomp"] + 1):
+            cols.append(f'wave_{i}_sigma')
+            cols.append(f'width_{i}_sigma')
+            for flux in range(1, self.free_lines + 1):
+                cols.append(f'flux_{i}_{chr(ord("@") + flux)}_sigma')
+
+        self.cat = pd.DataFrame(np.zeros((len(self.listing), len(cols))), columns=cols)
         self.cat.loc[:, 'ncomps'] = -1
 
         self.cat["index"] = self.cat.index
@@ -294,6 +306,7 @@ class Fit(object):
         analyzers = [0] * (maxcomp + 1)
         lnZs = [0] * (maxcomp + 1)
         outmodels = [0] * (maxcomp + 1)
+        modelsigma = [0] * (maxcomp + 1)
 
         # ------ CONTINUUM FIT ------
 
@@ -318,6 +331,7 @@ class Fit(object):
             n_params=n_params, verbose=False)
         lnZs[ncomp] = analyzers[ncomp].get_stats()['global evidence']
         outmodels[ncomp] = analyzers[ncomp].get_best_fit()['parameters']
+        modelsigma[ncomp] = analyzers[ncomp].get_stats()['modes'][0]['sigma']
 
         # plot best fit
         self.make_model_plot(ncomp, outmodels[ncomp], lnZs[ncomp])
@@ -340,6 +354,7 @@ class Fit(object):
                 n_params=n_params, verbose=False)
             lnZs[ncomp] = analyzers[ncomp].get_stats()['global evidence']
             outmodels[ncomp] = analyzers[ncomp].get_best_fit()['parameters']
+            modelsigma[ncomp] = analyzers[ncomp].get_stats()['modes'][0]['sigma']
 
             # plot best fit
             self.make_model_plot(ncomp, outmodels[ncomp], lnZs[ncomp])
@@ -349,7 +364,7 @@ class Fit(object):
             else:
                 break
 
-        self.write_results(index, bestncomp, outmodels[bestncomp])
+        self.write_results(index, bestncomp, outmodels[bestncomp], modelsigma[bestncomp])
 
         print(f'Pixel: {column}, {row} fit with {bestncomp} components')
         print(f'Average Continuum = {avg:.2e}')

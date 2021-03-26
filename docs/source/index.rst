@@ -31,6 +31,46 @@ If you run into issues installing PyMultiNest with pip install, try:
 
     conda install -c conda-forge pymultinest
 
+In our experience, the following instructions worked on a Mac:
+
+#. Install both Xcode and the Xcode Command Line Tools
+
+#. Install Macports
+    * Set up Macports to `sync via git <https://trac.macports.org/wiki/howto/SyncingWithGit>`_ instead of rsync
+    * Use the  `Astrobetter <https://www.astrobetter.com/wiki/MultiNest+Installation+Notes>`_
+      website guide to install gcc5, cmake and openmpi. If you have issues with installing
+      openmpi via sudo port install openmpi, then try installing with brew.
+    * Set correct version of gcc and mpi within Macports.  Refer to this website if you have trouble:
+      https://stackoverflow.com/questions/8361002/how-to-use-the-gcc-installed-in-macports
+      **Note:**  Make certain the the PATH of the user is set such that the Macports version of gfortran
+      is seen as the default gfortran compiler.  Other gfortran compilers will fail.
+
+#. Install anaconda and astroconda. Activate the astroconda environment.
+
+#. Use pip to install mpi4py
+
+#. Download Multinest
+
+.. code::
+
+    git clone https://github.com/JohannesBuchner/MultiNest.git
+    cd MultiNest/build/
+    cmake ..
+    make
+    sudo make install
+
+6. Download PyMultiNest
+
+.. code::
+
+    git clone https://github.com/JohannesBuchner/PyMultiNest.git
+    cd PyMultiNest
+    python setup.py install
+
+7. You can test your installation following the instructions also listed on `Astrobetter <https://www.astrobetter.com/wiki/MultiNest+Installation+Notes>`_
+
+
+
 
 How to get started
 ------------------
@@ -43,8 +83,11 @@ and follow the instructions in the notebook. (additional documentation will be
 added to this page later).
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :maxdepth: 1
+   :hidden:
+
+    index.rst
+    customizing_your_fits.rst
 
 
 
