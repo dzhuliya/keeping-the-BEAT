@@ -1,7 +1,7 @@
 Welcome to Keeping the BEAT's documentation!
 ============================================
 ~**in progress** ~
-=================
+==================
 
 The Bayesian Evidence Analysis Tool (BEAT) is a Python-based code for measuring
 and dissecting multi-component emission lines frequently observed in active
@@ -83,10 +83,10 @@ and follow the instructions in the notebook. (additional documentation will be
 added to this page later).
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :hidden:
 
-    customizing_your_fits
+   customizing_your_fits.rst
 
 Indices and tables
 ==================
