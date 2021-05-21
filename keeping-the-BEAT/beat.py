@@ -396,8 +396,6 @@ class Fit(object):
         # Set the number of dimensions of this model
         ncomp = 0
 
-        # parameters = ['contflux']
-        # n_params = len(parameters)
         n_params = 1
 
         # run MultiNest
