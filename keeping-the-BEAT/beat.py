@@ -347,7 +347,7 @@ class Fit(object):
         wave2 = wave[low2_ind:upp2_ind]
         contwave = np.concatenate((wave1, wave2), axis=0)
         contflux = np.concatenate((cont1, cont2), axis=0)
-        polycont = np.polyfit(contwave, contflux, 2)
+        polycont = np.polyfit(contwave, contflux, self.target_param['cont_poly'])
         poly = np.poly1d(polycont)
         avg = poly(x)
         stdev = (np.std(cont1) + np.std(cont2)) / 2  # stnd dev of continuum flux
