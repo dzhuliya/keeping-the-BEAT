@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import os
 import glob
+import numpy
 
 # TO DO change plot min and max back
 
@@ -30,12 +31,13 @@ class Fit(object):
             Dictionary that contains information general target information, fitting preferences and plotting info
     """
 
-    def __init__(self, out_dir, spec_dir, load_file, fit_instructions, target_param):
+    def __init__(self, out_dir, spec_dir, load_file, fit_instructions, target_param, broad_instructions=None):
         self.basepath = out_dir
         self.specpath = spec_dir
         self.load_file = load_file
         self.fit_instructions = fit_instructions
         self.target_param = target_param
+        self.broad_instructions = broad_instructions
         self.cat = None
 
         self.listing = sorted(os.listdir(self.specpath))
@@ -104,7 +106,7 @@ class Fit(object):
                 ('The number of dimensions must be positive and equal to '
                  f'1 or a multiple of {2 + self.free_lines}. ndim={ndim}'))
         if ndim == 1:
-            cube[0] = avg
+            cube[0] = 0.
         else:
             for i in range(0, ndim, 2 + self.free_lines):  # is this correct?? changed from 0,ndim,3
                 # uniform wavelength prior
@@ -131,6 +133,7 @@ class Fit(object):
             result = np.zeros(self.target_param['end'] - self.target_param['start']) + avg
             for i in range(0, nargs, 2 + self.free_lines):
                 result += self.gauss(*args[i:(i + (2 + self.free_lines))])
+                # result for totally free line (broad stuff) maxes out at one component for broad
         return result
 
     def loglike(self, cube, ndim, nparams):
@@ -139,24 +142,74 @@ class Fit(object):
         loglikelihood = -0.5 * (((ymodel - ydata) / noise) ** 2).sum()
         return loglikelihood
 
-    def write_results(self, index, ncomp, outmodel, modelsigma):
+# ----------------------------- continuum gauss ---------------------------------------------------------------------
+
+    def gauss_broad(self, pos1, width1, flux):
+        """"""
+        gauss1 = self.make_gaussian(pos1, width1, flux)
+        return gauss1(x)
+
+    def prior_broad(self, cube, ndim, nparams):
+        if ((ndim != 1) and (ndim % (3) != 0)) or (ndim <= 0):
+            raise ValueError(
+                ('The number of dimensions must be positive and equal to '
+                 f'1 or a multiple of {3}. ndim={ndim}'))
+        if ndim == 1:
+            if self.target_param["cont_type"] == 'something':
+                cube[0] = avg
+            else:
+                cube[0] = 0.
+        else:
+            for i in range(0, ndim, 3):  # is this correct?? changed from 0,ndim,3
+                # uniform wavelength prior
+                cube[i + 0] = (self.broad_instructions['minwave'] + (cube[i + 0]
+                               * self. broad_instructions['wave_range']))
+                # uniform width prior
+                cube[i + 1] = (self.broad_instructions['minwidth']
+                               + (cube[i + 1] * (self.broad_instructions['maxwidth'] - self.broad_instructions['minwidth'])))
+                # log-uniform flux prior
+                cube[i + 2] = threesigma * cube[i + 1] * np.sqrt(2 * np.pi) * np.power(10, cube[i + 2] * 4)
+
+    def model_broad(self, *args):
+        nargs = len(args)
+        if ((nargs != 1) and (nargs % (3) != 0)) or (nargs <= 0):
+            raise ValueError(
+                ('The number of arguments must be positive and equal to '
+                 f'1 or a multiple of 3. nargs={nargs}'))
+        if nargs == 1:
+            result = np.zeros(self.target_param['end'] - self.target_param['start']) + args[0]
+        else:
+            result = np.zeros(self.target_param['end'] - self.target_param['start']) + avg
+            for i in range(0, nargs, 3):
+                result += self.gauss_broad(*args[i:(i + 3)])
+                # result for totally free line (broad stuff) maxes out at one component for broad
+        return result
+
+    def loglike_broad(self, cube, ndim, nparams):
+        cubeaslist = [cube[i] for i in range(ndim)]
+        ymodel = self.model_broad(*cubeaslist)
+        loglikelihood = -0.5 * (((ymodel - ydata) / noise) ** 2).sum()
+        return loglikelihood
+
+#-------------------------------------BROAD-----------------------------------------
+
+    def write_results(self, filename, ncomp, outmodel, modelsigma):
         cat_file = os.path.join(self.basepath, f'{self.target_param["name"]}_out', f'{self.target_param["name"]}_'
                                 f'{self.fit_instructions["line1"]["name"]}.txt')
         cat = pd.read_csv(cat_file, index_col='index')
 
-
         use_col = cat.columns[2:len(outmodel) + 2].tolist()
         for i, mod in enumerate(outmodel):
-            cat.at[index, use_col[i]] = mod
+            cat.at[filename, use_col[i]] = mod
 
         sigma_col = cat.columns[-len(modelsigma):].tolist()
         for i, sig in enumerate(modelsigma):
-            cat.at[index, sigma_col[i]] = sig
+            cat.at[filename, sigma_col[i]] = sig
 
-        cat.at[index, 'ncomps'] = ncomp
+        cat.at[filename, 'ncomps'] = ncomp
         cat.to_csv(cat_file, index_label='index')
 
-    def make_model_plot(self, ncomp, outmodel, loglike):
+    def make_model_plot(self, ncomp, outmodel, loglike, filename):
         colorlist = ['goldenrod', 'plum', 'teal', 'firebrick', 'darkorange']
         fig, ax = plt.subplots()
         ax.set_xlim(self.target_param["plotmin"], self.target_param["plotmax"])
@@ -169,12 +222,14 @@ class Fit(object):
             ax.plot(x, noise, '-', color='red', zorder=1)
 
         # plot horizontal dashed red line of the 3sigma error + the average
-        ax.axhline(self.target_param["fluxsigma"] * stdev + avg, ls='--', lw=0.5, color='red',
-                   zorder=0)
+        # ax.axhline(self.target_param["fluxsigma"] * stdev + avg, ls='--', lw=0.5, color='red',
+                   # zorder=0)
+
 
         # Plot line of the expected location of the oiii line at the systemic
         # velocity of the system.
-        ax.axvline(systemic, 0, 1, ls='--', lw=0.5, color='blue', zorder=0)
+        # ax.axvline(systemic, 0, 1, ls='--', lw=0.5, color='blue', zorder=0)
+        ax.axvline(systemic, 0, 1, ls='--', lw=0.5, color='blue')
 
         # Plot the ranges from where the continuum was sampled.
         # ax.axvspan(wave[self.low1], wave[self.upp1], facecolor='black', alpha=0.1)
@@ -185,6 +240,7 @@ class Fit(object):
         # Plot the best fit model.
         ax.plot(x, self.model(*outmodel), '-', lw=1, color='black', label='model',
                 zorder=3)
+        ax.plot(x, avg, lw=1, color='green', label='model', zorder=3)
 
         # Draw the components of the model if ncomp > 1
         if ncomp > 1:
@@ -192,7 +248,7 @@ class Fit(object):
                 color = colorlist[(i // 3) % (len(colorlist))] # should be max comp
                 ax.plot(x, self.model(*outmodel[i:(i + 2 + self.free_lines)]), '-', lw=0.75, color=color,
                         zorder=2)
-        ax.set_title(f'Pixel ({column:3s}, {row:3s}) -- {ncomp} Components')
+        ax.set_title(f'{filename} -- {ncomp} Components')
         ax.set_xlabel('Wavelength ($\mathrm{\AA}$)')
         ax.set_ylabel('Flux ($erg\ s^{-1}\ cm^{-2}\ \AA^{-1}}$)')
         fig.savefig(plot_outfile + f'_{ncomp}_posterior.pdf')
@@ -201,7 +257,7 @@ class Fit(object):
 
     def init_cat(self):
         """Blank output catalog"""
-        cols = ["index", "pixel", "ncomps"]
+        cols = ["index", "filename", "ncomps"]
         for i in range(1, self.target_param["maxcomp"] + 1):
             cols.append(f'wave_{i}')
             cols.append(f'width_{i}')
@@ -222,23 +278,19 @@ class Fit(object):
         outfile = os.path.join(self.basepath, f'{self.target_param["name"]}_out',
                                f'{self.target_param["name"]}_{self.fit_instructions["line1"]["name"]}.txt')
 
-        self.cat['pixel'] = self.cat.apply(self.get_pix, axis=1)
+        self.cat['filename'] = self.cat.apply(self.get_pix, axis=1)
 
         self.cat.to_csv(outfile, index=False)
 
     def get_pix(self, row_ind):
-        fil = self.listing[int(row_ind['index'])]
-        # print(f'fil:{fil}')
-        infilebase = fil.split('.')[0]
-        column = infilebase.split('_')[1]  # spaxel column coordinate (x)
-        row = infilebase.split('_')[2]  # spaxel row coordinate (y)
-        return f'{column}_{row}'
+        infile = self.listing[int(row_ind['index'])]
+        return infile
 
     def find_unfit(self):
         open_cat = pd.read_csv(os.path.join(self.basepath, f'{self.target_param["name"]}_out',
                                     f'{self.target_param["name"]}_{self.fit_instructions["line1"]["name"]}.txt'))
-        indices = list(np.where(open_cat["ncomps"]==-1)[0])
-        return indices
+        file_list = list(open_cat.loc[open_cat['ncomps'] == -1, 'filename'])
+        return file_list
 
     def remove_unnecessary_files(self, path, patterns):
         filestoremove = []
@@ -252,7 +304,7 @@ class Fit(object):
             except:
                 print(f"Error while deleting '{file}'")
 
-    def mp_worker(self, index):
+    def mp_worker(self, filename):
         # Set the variables that will be used directly within the functions below
         # rather than passing them in as arguments.
         global x, ydata, miny, maxy, avg, stdev, noise, wave, threesigma
@@ -263,9 +315,10 @@ class Fit(object):
             os.remove(os.path.join(self.specpath, '.DS_Store'))
 
         # Set the filename and filepaths for the various inputs and outputs.
-        infile = self.listing[index]
+        infile = filename
+        print(infile)
         inspecpath = os.path.join(self.specpath, infile)
-        row, column, wave, flux, noise = self.load_file(inspecpath)
+        wave, flux, noise = self.load_file(inspecpath)
         infilebase = infile.split('.')[0]
         data_outfile = os.path.join(self.basepath, f'{self.target_param["name"]}_out', 'out',
                                     f'{infilebase}_{self.fit_instructions["line1"]["name"]}')
@@ -290,12 +343,39 @@ class Fit(object):
         upp2_ind = (np.abs(wave - self.target_param["continuum2"][1])).argmin()
         cont1 = flux[low1_ind:upp1_ind]
         cont2 = flux[low2_ind:upp2_ind]
-
-        avg = (np.median(cont1) + np.median(cont2)) / 2
-        ### should we re-evaluate the stdev of the continuum now that there is
-        ### reported error?
+        wave1 = wave[low1_ind:upp1_ind]
+        wave2 = wave[low2_ind:upp2_ind]
+        contwave = np.concatenate((wave1, wave2), axis=0)
+        contflux = np.concatenate((cont1, cont2), axis=0)
+        polycont = np.polyfit(contwave, contflux, 2)
+        poly = np.poly1d(polycont)
+        avg = poly(x)
         stdev = (np.std(cont1) + np.std(cont2)) / 2  # stnd dev of continuum flux
         threesigma = (self.target_param["fluxsigma"] * stdev)  # * init.minwidth * np.sqrt(2*np.pi)
+        # fit broad component
+        if self.broad_instructions is not None:
+            print(f'{filename} fitting broad component')
+            n_params = 3
+            # run MultiNest
+            pymultinest.run(self.loglike_broad, self.prior_broad, n_params,
+                            outputfiles_basename=f'{data_outfile}_broad_',
+                            n_live_points=200, multimodal=False, resume=False,
+                            verbose=False)
+            broad_comp = pymultinest.Analyzer(
+                outputfiles_basename=f'{data_outfile}_broad_',
+                n_params=n_params, verbose=False)
+            outmodels_broad = broad_comp.get_best_fit()['parameters']
+            lnZs_broad = broad_comp.get_stats()['global evidence']
+            # avg = avg + self.model_broad(*outmodels_broad)
+            avg = self.model_broad(*outmodels_broad)
+
+
+
+        # avg = (np.median(cont1) + np.median(cont2)) / 2
+        ### should we re-evaluate the stdev of the continuum now that there is
+        ### reported error?
+        # stdev = (np.std(cont1) + np.std(cont2)) / 2  # stnd dev of continuum flux
+        # threesigma = (self.target_param["fluxsigma"] * stdev)  # * init.minwidth * np.sqrt(2*np.pi)
         # noise = stdev * np.sqrt((abs(ydata) / abs(avg))) # signal dependant noise
 
         # Set the maximum number of components that this program will model
@@ -309,7 +389,7 @@ class Fit(object):
 
         # ------ CONTINUUM FIT ------
 
-        print(f'Fitting Pixel: {column}, {row}')
+        print(f'Fitting {filename}')
         print(f'Min Y: {miny:.2e}')
         print(f'Max Y: {maxy:.2e}')
 
@@ -333,14 +413,14 @@ class Fit(object):
         modelsigma[ncomp] = analyzers[ncomp].get_stats()['modes'][0]['sigma']
 
         # plot best fit
-        self.make_model_plot(ncomp, outmodels[ncomp], lnZs[ncomp])
+        self.make_model_plot(ncomp, outmodels[ncomp], lnZs[ncomp], filename)
 
         # set this as the best fit
         bestncomp = ncomp
 
         # Now try increased number of components.
         for ncomp in range(1, maxcomp + 1):
-            print(f'Pixel: {column}, {row} trying {ncomp} component(s)')
+            print(f'{filename}: trying {ncomp} component(s)')
             n_params = (2 + self.free_lines) * ncomp
 
             # run MultiNest
@@ -356,17 +436,17 @@ class Fit(object):
             modelsigma[ncomp] = analyzers[ncomp].get_stats()['modes'][0]['sigma']
 
             # plot best fit
-            self.make_model_plot(ncomp, outmodels[ncomp], lnZs[ncomp])
+            self.make_model_plot(ncomp, outmodels[ncomp], lnZs[ncomp], filename)
 
             if lnZs[ncomp] - lnZs[bestncomp] > self.target_param["lnz"]:
                 bestncomp = ncomp
             else:
                 break
 
-        self.write_results(index, bestncomp, outmodels[bestncomp], modelsigma[bestncomp])
+        self.write_results(filename, bestncomp, outmodels[bestncomp], modelsigma[bestncomp])
 
-        print(f'Pixel: {column}, {row} fit with {bestncomp} components')
-        print(f'Average Continuum = {avg:.2e}')
+        print(f'{filename} fit with {bestncomp} components')
+        print(f'Average Continuum = {np.mean(avg):.2e}')
         print(f'Standard deviation = {stdev:.4e}')
 
 
@@ -377,6 +457,8 @@ class Fit(object):
 
     def mp_handler(self):
         # make mp optional
+        if os.path.exists(os.path.join(self.specpath, '.DS_Store')):
+            os.remove(os.path.join(self.specpath, '.DS_Store'))
         unfit_pix = self.find_unfit()
         print(f'remaining to fit: {len(unfit_pix)}')
         pool = mp.Pool(processes=self.target_param["cores"])
