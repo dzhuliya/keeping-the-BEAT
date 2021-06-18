@@ -428,7 +428,6 @@ class Fit(object):
                     n_params=n_params, verbose=False)
                 outmodels_prefit = prefit_comp.get_best_fit()['parameters']
                 lnZs_prefit = prefit_comp.get_stats()['global evidence']
-                # avg = avg + self.model_prefit(*outmodels_prefit) wrong lol
                 avg = self.model_prefit(*outmodels_prefit)
 
 
