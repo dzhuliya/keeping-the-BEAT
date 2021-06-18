@@ -31,18 +31,23 @@ class Fit(object):
             Dictionary that contains information general target information, fitting preferences and plotting info
     """
 
-    def __init__(self, out_dir, spec_dir, load_file, fit_instructions, target_param, broad_instructions=None):
+    def __init__(self, out_dir, spec_dir, load_file, target_param, fit_instructions, cont_instructions=None,
+                 prefit_instructions=None):
         self.basepath = out_dir
         self.specpath = spec_dir
         self.load_file = load_file
-        self.fit_instructions = fit_instructions
         self.target_param = target_param
-        self.broad_instructions = broad_instructions
+        self.fit_instructions = fit_instructions
+        self.cont_instructions = cont_instructions
+        self.prefit_instructions = prefit_instructions
         self.cat = None
-
         self.listing = sorted(os.listdir(self.specpath))
         self.free_lines = sum(self.fit_instructions[line]['flux_free'] is True for line in self.fit_instructions)
-
+        if self.prefit_instructions is not None:
+            self.known_comps = self.prefit_instructions.copy()
+            self.known_comps.pop('flux')
+            self.prefit_free_lines = sum(
+                self.known_comps[line]['flux_free'] is True for line in self.known_comps)
         self.make_dirs()
 
     def make_dirs(self):
@@ -142,20 +147,49 @@ class Fit(object):
         loglikelihood = -0.5 * (((ymodel - ydata) / noise) ** 2).sum()
         return loglikelihood
 
-# ----------------------------- continuum gauss ---------------------------------------------------------------------
+# ----------------------------- prefit gauss ---------------------------------------------------------------------
 
-    def gauss_broad(self, pos1, width1, flux):
+    def gauss_prefit(self, pos1, width1, *args):
         """"""
-        gauss1 = self.make_gaussian(pos1, width1, flux)
-        return gauss1(x)
+        pos_all = []
+        width_all = []
+        flux_all = []
+        lines = []
+        args = list(args)
 
-    def prior_broad(self, cube, ndim, nparams):
+        for line in self.known_comps:
+            lines.append(line)  # keeping track of what lines have been fit
+            pos = self.known_comps[line]['cen']
+            pos_all.append(pos)
+            width = self.known_comps[line]['width']
+            width_all.append(width)
+            if self.known_comps[line]['flux_free'] is True:
+                flux = args[0]  # get the argument
+                flux_all.append(flux)
+                args.pop(0)
+            else:
+                line_lock = self.known_comps[line]['locked_with']
+                ratio = self.known_comps[line]['flux_ratio']
+                flux_lock = flux_all[lines.index(line_lock)]
+                flux = flux_lock / ratio
+                flux_all.append(flux)
+
+        all_gauss_functions = [0] * len(x)  # global variable at end
+        for i in range(0, len(self.known_comps)):
+            pos = pos_all[i]
+            flux = flux_all[i]
+            width = width_all[i]
+            gauss_hold = self.make_gaussian(pos, width, flux)
+            all_gauss_functions += gauss_hold(x)
+        return all_gauss_functions
+
+    """def prior_broad(self, cube, ndim, nparams):
         if ((ndim != 1) and (ndim % (3) != 0)) or (ndim <= 0):
             raise ValueError(
                 ('The number of dimensions must be positive and equal to '
                  f'1 or a multiple of {3}. ndim={ndim}'))
         if ndim == 1:
-            if self.target_param["cont_type"] == 'something':
+            if self.cont_instructions is None:
                 cube[0] = avg
             else:
                 cube[0] = 0.
@@ -168,9 +202,26 @@ class Fit(object):
                 cube[i + 1] = (self.broad_instructions['minwidth']
                                + (cube[i + 1] * (self.broad_instructions['maxwidth'] - self.broad_instructions['minwidth'])))
                 # log-uniform flux prior
-                cube[i + 2] = threesigma * cube[i + 1] * np.sqrt(2 * np.pi) * np.power(10, cube[i + 2] * 4)
+                cube[i + 2] = threesigma * cube[i + 1] * np.sqrt(2 * np.pi) * np.power(10, cube[i + 2] * 4)"""
 
-    def model_broad(self, *args):
+    def prior_prefit(self, cube, ndim, nparams):
+        if ((ndim != 1) and (ndim % (2 + self.prefit_free_lines) != 0)) or (ndim <= 0): # 3 or 2 + free_lines
+            raise ValueError(
+                ('The number of dimensions must be positive and equal to '
+                 f'1 or a multiple of {2 + self.prefit_free_lines}. ndim={ndim}'))
+        if ndim == 1:
+            cube[0] = 0.
+        else:
+            for i in range(0, ndim, 2 + self.prefit_free_lines):  # is this correct?? changed from 0,ndim,3
+                # uniform wavelength prior
+                cube[i + 0] = (self.prefit_instructions['comp1']['cen'])
+                # uniform width prior
+                cube[i + 1] = (self.prefit_instructions['comp1']['width'])
+                # log-uniform flux prior
+                for fprior in range(0, self.prefit_free_lines):
+                    cube[i + fprior + 2] = threesigma * cube[i+1] * np.sqrt(2 * np.pi) * np.power(10, cube[i + fprior + 2] * 4)
+
+    def model_prefit(self, *args):
         nargs = len(args)
         if ((nargs != 1) and (nargs % (3) != 0)) or (nargs <= 0):
             raise ValueError(
@@ -181,17 +232,16 @@ class Fit(object):
         else:
             result = np.zeros(self.target_param['end'] - self.target_param['start']) + avg
             for i in range(0, nargs, 3):
-                result += self.gauss_broad(*args[i:(i + 3)])
-                # result for totally free line (broad stuff) maxes out at one component for broad
+                result += self.gauss_prefit(*args[i:(i + 3)])
         return result
 
-    def loglike_broad(self, cube, ndim, nparams):
+    def loglike_prefit(self, cube, ndim, nparams):
         cubeaslist = [cube[i] for i in range(ndim)]
-        ymodel = self.model_broad(*cubeaslist)
+        ymodel = self.model_prefit(*cubeaslist)
         loglikelihood = -0.5 * (((ymodel - ydata) / noise) ** 2).sum()
         return loglikelihood
 
-#-------------------------------------BROAD-----------------------------------------
+# ----------------------------- prefit gauss ---------------------------------------------------------------------
 
     def write_results(self, filename, ncomp, outmodel, modelsigma):
         cat_file = os.path.join(self.basepath, f'{self.target_param["name"]}_out', f'{self.target_param["name"]}_'
@@ -200,13 +250,16 @@ class Fit(object):
 
         use_col = cat.columns[2:len(outmodel) + 2].tolist()
         for i, mod in enumerate(outmodel):
-            cat.at[filename, use_col[i]] = mod
+            cat.loc[cat['filename'] == filename, use_col[i]] = mod
+            # cat.at[filename, use_col[i]] = mod
 
-        sigma_col = cat.columns[-len(modelsigma):].tolist()
+        sigma_col = cat.columns[cat.columns.str.endswith('sigma')].tolist()
         for i, sig in enumerate(modelsigma):
-            cat.at[filename, sigma_col[i]] = sig
+            cat.loc[cat['filename'] == filename, sigma_col[i]] = sig
+            # cat.at[filename, sigma_col[i]] = sig
 
-        cat.at[filename, 'ncomps'] = ncomp
+        # cat.at[filename, 'ncomps'] = ncomp
+        cat.loc[cat['filename'] == filename, 'ncomps'] = ncomp
         cat.to_csv(cat_file, index_label='index')
 
     def make_model_plot(self, ncomp, outmodel, loglike, filename):
@@ -234,8 +287,8 @@ class Fit(object):
         # Plot the ranges from where the continuum was sampled.
         # ax.axvspan(wave[self.low1], wave[self.upp1], facecolor='black', alpha=0.1)
         # ax.axvspan(wave[self.low2], wave[self.upp2], facecolor='black', alpha=0.1)
-        ax.axvspan(self.target_param["continuum1"][0], self.target_param["continuum1"][1], facecolor='black', alpha=0.1)
-        ax.axvspan(self.target_param["continuum2"][0], self.target_param["continuum2"][1], facecolor='black', alpha=0.1)
+        ax.axvspan(self.cont_instructions["continuum1"][0], self.cont_instructions["continuum1"][1], facecolor='black', alpha=0.1)
+        ax.axvspan(self.cont_instructions["continuum2"][0], self.cont_instructions["continuum2"][1], facecolor='black', alpha=0.1)
 
         # Plot the best fit model.
         ax.plot(x, self.model(*outmodel), '-', lw=1, color='black', label='model',
@@ -316,7 +369,6 @@ class Fit(object):
 
         # Set the filename and filepaths for the various inputs and outputs.
         infile = filename
-        print(infile)
         inspecpath = os.path.join(self.specpath, infile)
         wave, flux, noise = self.load_file(inspecpath)
         infilebase = infile.split('.')[0]
@@ -337,37 +389,47 @@ class Fit(object):
         # is this right? should this be for all lines??
         systemic = (1. + self.target_param["red"]) * self.fit_instructions["line1"]["wave"]
 
-        low1_ind = (np.abs(wave - self.target_param["continuum1"][0])).argmin()
-        upp1_ind = (np.abs(wave - self.target_param["continuum1"][1])).argmin()
-        low2_ind = (np.abs(wave - self.target_param["continuum2"][0])).argmin()
-        upp2_ind = (np.abs(wave - self.target_param["continuum2"][1])).argmin()
+        low1_ind = (np.abs(wave - self.cont_instructions["continuum1"][0])).argmin()
+        upp1_ind = (np.abs(wave - self.cont_instructions["continuum1"][1])).argmin()
+        low2_ind = (np.abs(wave - self.cont_instructions["continuum2"][0])).argmin()
+        upp2_ind = (np.abs(wave - self.cont_instructions["continuum2"][1])).argmin()
         cont1 = flux[low1_ind:upp1_ind]
         cont2 = flux[low2_ind:upp2_ind]
         wave1 = wave[low1_ind:upp1_ind]
         wave2 = wave[low2_ind:upp2_ind]
         contwave = np.concatenate((wave1, wave2), axis=0)
         contflux = np.concatenate((cont1, cont2), axis=0)
-        polycont = np.polyfit(contwave, contflux, self.target_param['cont_poly'])
+        polycont = np.polyfit(contwave, contflux, self.cont_instructions['cont_poly'])
         poly = np.poly1d(polycont)
         avg = poly(x)
         stdev = (np.std(cont1) + np.std(cont2)) / 2  # stnd dev of continuum flux
         threesigma = (self.target_param["fluxsigma"] * stdev)  # * init.minwidth * np.sqrt(2*np.pi)
         # fit broad component
-        if self.broad_instructions is not None:
-            print(f'{filename} fitting broad component')
-            n_params = 3
-            # run MultiNest
-            pymultinest.run(self.loglike_broad, self.prior_broad, n_params,
-                            outputfiles_basename=f'{data_outfile}_broad_',
-                            n_live_points=200, multimodal=False, resume=False,
-                            verbose=False)
-            broad_comp = pymultinest.Analyzer(
-                outputfiles_basename=f'{data_outfile}_broad_',
-                n_params=n_params, verbose=False)
-            outmodels_broad = broad_comp.get_best_fit()['parameters']
-            lnZs_broad = broad_comp.get_stats()['global evidence']
-            # avg = avg + self.model_broad(*outmodels_broad)
-            avg = self.model_broad(*outmodels_broad)
+        if self.prefit_instructions is not None:
+            print(f'{infile} fitting prefit component')
+            if self.prefit_instructions['flux'] == 'known':
+                known_gauss_functions = [0] * len(x)  # global variable at end
+                for comp in self.known_comps:
+                        pos = comp['cen']
+                        flux = comp['flux']
+                        width = comp['width']
+                        gauss_hold = self.make_gaussian(pos, width, flux)
+                        known_gauss_functions += gauss_hold(x)
+                avg = known_gauss_functions
+            else:
+                n_params = 3
+                # run MultiNest
+                pymultinest.run(self.loglike_prefit, self.prior_prefit, n_params,
+                                outputfiles_basename=f'{data_outfile}_prefit_',
+                                n_live_points=200, multimodal=False, resume=False,
+                                verbose=False)
+                prefit_comp = pymultinest.Analyzer(
+                    outputfiles_basename=f'{data_outfile}_prefit_',
+                    n_params=n_params, verbose=False)
+                outmodels_prefit = prefit_comp.get_best_fit()['parameters']
+                lnZs_prefit = prefit_comp.get_stats()['global evidence']
+                # avg = avg + self.model_prefit(*outmodels_prefit) wrong lol
+                avg = self.model_prefit(*outmodels_prefit)
 
 
 
