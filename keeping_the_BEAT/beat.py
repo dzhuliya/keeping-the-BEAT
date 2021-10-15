@@ -226,8 +226,6 @@ class Fit(object):
 
     def model3(self, *args):
         nargs = len(args)
-        print("the arguments sent to model3")
-        print(*args)
         if nargs == 1:
             result = np.zeros(self.target_param['end'] - self.target_param['start']) + args[0]
         else:
@@ -306,8 +304,6 @@ class Fit(object):
 
         # Draw the components of the model if ncomp > 1
         if ncomp > 1:
-            print("make model plot, outmodel")
-            print(*outmodel)
             i = 0
             color = colorlist[(i // 3) % (len(colorlist))]  # should be max comp
             # for i in range(0, self.prefit_free_lines*3, 2+self.prefit_free_lines):
@@ -447,7 +443,6 @@ class Fit(object):
         n_params = 1
 
         # run MultiNest
-        print("doing the first multinest run")
         pymultinest.run(self.loglike, self.prior, n_params,
                         outputfiles_basename=f'{data_outfile}_{ncomp}_',
                         n_live_points=200, multimodal=False, resume=False,
@@ -469,8 +464,6 @@ class Fit(object):
         for ncomp in range(1, maxcomp + 1):
             print(f'{filename}: trying {ncomp} component(s)')
             n_params = (2 + self.free_lines) * ncomp + (3 * self.prefit_num_lines)
-            print("number of params in main")
-            print(n_params)
             # run MultiNest
             pymultinest.run(self.loglike, self.prior, n_params,
                             outputfiles_basename=f'{data_outfile}_{ncomp}_',
@@ -490,9 +483,6 @@ class Fit(object):
                 bestncomp = ncomp
             else:
                 break
-        print('best comps', bestncomp)
-        print('outmodels', outmodels[bestncomp])
-        print('modelsigma', modelsigma[bestncomp])
         self.write_results(filename, bestncomp, outmodels[bestncomp], modelsigma[bestncomp])
 
         print(f'{filename} fit with {bestncomp} components')
