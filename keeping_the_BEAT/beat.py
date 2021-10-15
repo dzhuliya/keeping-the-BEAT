@@ -67,8 +67,7 @@ class Fit(object):
             os.mkdir(os.path.join(self.basepath, f'{self.target_param["name"]}_out', 'plots'))
 
         if not os.path.exists(os.path.join(self.basepath, f'{self.target_param["name"]}_out',
-                                           f'{self.target_param["name"]}_{self.fit_instructions["line1"][
-                                               "name"]}.txt')):
+                                           f'{self.target_param["name"]}_{self.fit_instructions["line1"]["name"]}.txt')):
             self.init_cat()
 
     # -------------------------------------------------------------------------------------------------------------------#
@@ -253,7 +252,7 @@ class Fit(object):
         print(outmodel)
         print(modelsigma)
         cat_file = os.path.join(self.basepath, f'{self.target_param["name"]}_out', f'{self.target_param["name"]}_'
-        f'{self.fit_instructions["line1"]["name"]}.txt')
+                                               f'{self.fit_instructions["line1"]["name"]}.txt')
         cat = pd.read_csv(cat_file, index_col='index')
 
         use_col = cat.columns[2:len(outmodel[3 * self.prefit_num_lines:]) + 2].tolist()
@@ -361,8 +360,8 @@ class Fit(object):
 
     def find_unfit(self):
         open_cat = pd.read_csv(os.path.join(self.basepath, f'{self.target_param["name"]}_out',
-                                            f'{self.target_param["name"]}_{self.fit_instructions["line1"][
-                                                "name"]}.txt'))
+                                                           f'{self.target_param["name"]}_'
+                                                           f'{self.fit_instructions["line1"]["name"]}.txt'))
         file_list = list(open_cat.loc[open_cat['ncomps'] == -1, 'filename'])
         return file_list
 
@@ -441,7 +440,7 @@ class Fit(object):
         print(f'Min Y: {miny:.2e}')
         print(f'Max Y: {maxy:.2e}')
 
-        # ------------------------------------------------------working on this part-----------------------------------------#
+        # -----------------------------------------------working on this part-----------------------------------------#
         # Set the number of dimensions of this model
         ncomp = 0
 
