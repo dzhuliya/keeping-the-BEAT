@@ -10,9 +10,6 @@ import glob
 import numpy
 
 
-# TO DO change plot min and max back
-
-
 class Fit(object):
     """ Fit gaussian component(s) to specified emission line(s) for a number of pixel/spaxel.
         Parameters
@@ -145,47 +142,40 @@ class Fit(object):
         return all_gauss_functions
 
     def prior(self, cube, ndim, nparams):
-        # print(f'prior number of dim: {ndim} and {nparams} params')
         """if ((ndim != 1) and (ndim % (2 + self.free_lines) != 0)) or (ndim <= 0): # 3 or 2 + free_lines
             raise ValueError(
-                ('The number of dimensions must be positive and equal to '            # figure this stuff out later
+                ('The number of dimensions must be positive and equal to '            figure this stuff out later
                  f'1 or a multiple of {2 + self.free_lines}. ndim={ndim}'))"""
-        # print("prior function printing cube")
-        # print([cube[i] for i in range(ndim)])
         if ndim == 1:
             cube[0] = 0.
         else:
-            # for i in range(0, ndim, 2 + self.prefit_free_lines):  # this needs to change
-            # uniform wavelength prior
             if self.prefit_free_lines > 0:
                 for i in range(0, self.prefit_num_lines):
+
+                    # uniform wavelength prior
                     cube[i * 3] = (self.prefit_instructions[f'comp{i + 1}']['cen'])
-                    # print(f'cube[{i*3}]')
+
                     # uniform width prior
                     cube[i * 3 + 1] = (self.prefit_instructions[f'comp{i + 1}']['width'])
-                    # print(f'cube[{i*3+1}]')
-                    # log-uniform flux prior
-                    cube[i * 3 + 2] = threesigma * cube[i * 3 + 1] * np.sqrt(2 * np.pi) * np.power(10,
-                                                                                                   cube[i * 3 + 2] * 4)
-                    # print(f'cube[{i*3+2}]')
 
-            for i in range(self.prefit_num_lines * 3, ndim, 2 + self.free_lines):  #
+                    # log-uniform flux prior
+                    cube[i * 3 + 2] = ((stdev / 10) * cube[i * 3 + 1] * np.sqrt(2 * np.pi) *
+                                       np.power(10, cube[i * 3 + 2] * 4))
+
+            for i in range(self.prefit_num_lines * 3, ndim, 2 + self.free_lines):
+
                 # uniform wavelength prior
-                cube[i + 0] = (self.fit_instructions['line1']['minwave'] + (cube[i + 0]
-                                                                            * self.fit_instructions['line1'][
-                                                                                'wave_range']))
-                # print(f'cube[{i+0}]')
+                cube[i + 0] = self.fit_instructions['line1']['minwave'] + (cube[i + 0] *
+                                                                           self.fit_instructions['line1']['wave_range'])
+
                 # uniform width prior
                 cube[i + 1] = (self.target_param['minwidth']
                                + (cube[i + 1] * (self.target_param['maxwidth'] - self.target_param['minwidth'])))
-                # print(f'cube[{i+1}]')
+
                 # log-uniform flux prior
                 for fprior in range(0, self.free_lines):
                     cube[i + fprior + 2] = threesigma * cube[i + 1] * np.sqrt(2 * np.pi) * np.power(10, cube[
                         i + fprior + 2] * 4)
-                    # print(f'cube[{i+fprior+2}]')
-        # print("prior function printing cube at the end")
-        # print([cube[i] for i in range(ndim)])
 
     def model(self, *args):
         nargs = len(args)
@@ -197,21 +187,15 @@ class Fit(object):
             result = np.zeros(self.target_param['end'] - self.target_param['start']) + args[0]
         else:
             result = np.zeros(self.target_param['end'] - self.target_param['start']) + avg
-            # print("the args in model are")
-            # print(*args)
-            # print("start the looping in model")
+
             for i in range(0, self.prefit_num_lines * 3, 2 + self.prefit_free_lines):
-                # print("model gauss cont thing")
-                # print(*args[i:(i + (2 + self.prefit_free_lines))])
                 result += self.gauss_cont(*args[i:(i + (2 + self.prefit_free_lines))])
             for i in range(self.prefit_num_lines * 3, nargs, 2 + self.free_lines):
-                # print(*args[i:(i + (2 + self.free_lines))])
                 result += self.gauss(*args[i:(i + (2 + self.free_lines))])
         return result
 
     def model2(self, *args):
         nargs = len(args)
-        # print(nargs)
         """if ((nargs != 1) and (nargs % (2 + self.free_lines) != 0)) or (nargs <= 0):
             raise ValueError(
                 ('The number of arguments must be positive and equal to '
@@ -236,9 +220,7 @@ class Fit(object):
 
     def loglike(self, cube, ndim, nparams):
         cubeaslist = [cube[i] for i in range(ndim)]
-        # print("cube", cubeaslist)
         ymodel = self.model(*cubeaslist)
-        # print("ymodel", ymodel)
         loglikelihood = -0.5 * (((ymodel - ydata) / noise) ** 2).sum()
         return loglikelihood
 
@@ -260,9 +242,6 @@ class Fit(object):
 
         sigma_col = cat.columns[cat.columns.str.endswith('sigma')].tolist()
         for i, sig in enumerate(modelsigma[3 * self.prefit_num_lines:]):
-            # print(modelsigma)
-            # print(modelsigma[3*self.prefit_free_lines:])
-            # print(i, sig)
             cat.loc[cat['filename'] == filename, sigma_col[i]] = sig
 
         cat.loc[cat['filename'] == filename, 'ncomps'] = ncomp
@@ -280,18 +259,8 @@ class Fit(object):
         if (ncomp == 0) or (ncomp == 1):
             ax.plot(x, noise, '-', color='red', zorder=1)
 
-        # plot horizontal dashed red line of the 3sigma error + the average
-        # ax.axhline(self.target_param["fluxsigma"] * stdev + avg, ls='--', lw=0.5, color='red',
-        # zorder=0)
-
-        # Plot line of the expected location of the oiii line at the systemic
-        # velocity of the system.
-        # ax.axvline(systemic, 0, 1, ls='--', lw=0.5, color='blue', zorder=0)
         ax.axvline(systemic, 0, 1, ls='--', lw=0.5, color='blue')
 
-        # Plot the ranges from where the continuum was sampled.
-        # ax.axvspan(wave[self.low1], wave[self.upp1], facecolor='black', alpha=0.1)
-        # ax.axvspan(wave[self.low2], wave[self.upp2], facecolor='black', alpha=0.1)
         ax.axvspan(self.cont_instructions["continuum1"][0], self.cont_instructions["continuum1"][1], facecolor='black',
                    alpha=0.1)
         ax.axvspan(self.cont_instructions["continuum2"][0], self.cont_instructions["continuum2"][1], facecolor='black',
@@ -304,15 +273,11 @@ class Fit(object):
 
         # Draw the components of the model if ncomp > 1
         if ncomp > 1:
-            i = 0
-            color = colorlist[(i // 3) % (len(colorlist))]  # should be max comp
-            # for i in range(0, self.prefit_free_lines*3, 2+self.prefit_free_lines):
-            # for i in range(0, self.prefit_num_lines*3, 2+self.prefit_free_lines):
-            color = colorlist[(i // self.target_param["maxcomp"]) % (len(colorlist))]
-            ax.plot(x, self.model3(*outmodel[i:(i + (self.prefit_free_lines * 3))]), '-', lw=0.75, color=color,
+            # fix the numbers here for slices of outmodel
+            ax.plot(x, self.model3(*outmodel[0: 3 * self.prefit_num_lines]), '-', lw=0.75, color="olive",
                     zorder=2)
 
-            for i in range(self.prefit_num_lines * 3, ((2 + self.free_lines) * ncomp) + (3 * self.prefit_num_lines),
+            for i in range(3 * self.prefit_num_lines, ((2 + self.free_lines) * ncomp) + (3 * self.prefit_num_lines),
                            (2 + self.free_lines)):
                 color = colorlist[(i // self.target_param["maxcomp"]) % (len(colorlist))]
                 ax.plot(x, self.model2(*outmodel[i:(i + 2 + self.free_lines)]), '-', lw=0.75, color=color,
