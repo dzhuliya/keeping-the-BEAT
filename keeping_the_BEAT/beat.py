@@ -94,7 +94,7 @@ class Fit(object):
                 flux_all.append(flux)
                 args.pop(0)
             else:
-                line_lock = self.fit_instructions[line]['locked_with']
+                line_lock = self.fit_instructions[line]['flux_locked_with']
                 ratio = self.fit_instructions[line]['flux_ratio']
                 flux_lock = flux_all[lines.index(line_lock)]
                 flux = flux_lock / ratio
@@ -126,7 +126,7 @@ class Fit(object):
                 flux_all.append(flux)
                 args.pop(0)
             else:
-                line_lock = self.known_comps[line]['locked_with']
+                line_lock = self.known_comps[line]['flux_locked_with']
                 ratio = self.known_comps[line]['flux_ratio']
                 flux_lock = flux_all[lines.index(line_lock)]
                 flux = flux_lock / ratio
@@ -174,7 +174,7 @@ class Fit(object):
 
                 # log-uniform flux prior
                 for fprior in range(0, self.free_lines):
-                    cube[i + fprior + 2] = threesigma * cube[i + 1] * np.sqrt(2 * np.pi) * np.power(10, cube[
+                    cube[i + fprior + 2] = fluxsigma * cube[i + 1] * np.sqrt(2 * np.pi) * np.power(10, cube[
                         i + fprior + 2] * 4)
 
     def model(self, *args):
@@ -235,7 +235,15 @@ class Fit(object):
                                                f'{self.fit_instructions["line1"]["name"]}.txt')
         cat = pd.read_csv(cat_file, index_col='index')
 
-        use_col = cat.columns[2:len(outmodel[3 * self.prefit_num_lines:]) + 2].tolist()
+        prefit_col = cat.columns[cat.columns.str.startswith('prefit')].tolist()
+        for i, prefit in enumerate(range(2, (3*self.prefit_num_lines)+2, 3)):
+            print("prefit_col is")
+            print(prefit_col)
+            print(i, prefit)
+            cat.loc[cat['filename'] == filename, prefit_col[i]] = outmodel[prefit]
+
+        use_col = cat.columns[2+self.prefit_num_lines:len(outmodel[3 * self.prefit_num_lines:]) +
+                                                      (2+self.prefit_num_lines)].tolist()
         for i, mod in enumerate(outmodel[3 * self.prefit_num_lines:]):
             cat.loc[cat['filename'] == filename, use_col[i]] = mod
             # cat.at[filename, use_col[i]] = mod
@@ -291,6 +299,9 @@ class Fit(object):
     def init_cat(self):
         """Blank output catalog"""
         cols = ["index", "filename", "ncomps"]
+        if self.prefit_num_lines > 0:
+            for i in range(self.prefit_num_lines):
+                cols.append(f'prefit_flux{i+1}')
         for i in range(1, self.target_param["maxcomp"] + 1):
             cols.append(f'wave_{i}')
             cols.append(f'width_{i}')
@@ -341,7 +352,7 @@ class Fit(object):
     def mp_worker(self, filename):
         # Set the variables that will be used directly within the functions below
         # rather than passing them in as arguments.
-        global x, ydata, miny, maxy, avg, stdev, noise, wave, threesigma
+        global x, ydata, miny, maxy, avg, stdev, noise, wave, fluxsigma
         global column, row, line_outfile, ypadding, systemic, plot_outfile
 
         # Clean up the contents of the input directory
@@ -384,7 +395,7 @@ class Fit(object):
         poly = np.poly1d(polycont)
         avg = poly(x)
         stdev = (np.std(cont1) + np.std(cont2)) / 2  # stnd dev of continuum flux
-        threesigma = (self.target_param["fluxsigma"] * stdev)  # * init.minwidth * np.sqrt(2*np.pi)
+        fluxsigma = (self.target_param["fluxsigma"] * stdev)  # * init.minwidth * np.sqrt(2*np.pi)
 
         # Set the maximum number of components that this program will model
         maxcomp = self.target_param["maxcomp"]
