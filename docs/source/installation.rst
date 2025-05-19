@@ -72,14 +72,14 @@ Let's test that BEAT is correctly installed and working properly on your machine
 It will create a new directory in the current location called ``ngc7319_out,`` which stores the results of the fit. It should produce three PDF files in the ``plots`` folder, which should look like the plots below:
 
 .. image:: ../build/html/_images/NGC7319_0_comps.jpg
-  :width: 33%
+  :width: 45%
   :alt: figure of test spectrum fit with 0 components
 
 .. image:: ../build/html/_images/NGC7319_1_comp.jpg
-  :width: 33%
+  :width: 45%
   :alt: figure of test spectrum fit with 1 component
 
 .. image:: ../build/html/_images/NGC7319_2_comps.jpg
-  :width: 33%
+  :width: 45%
   :alt: figure of test spectrum fit with 2 components
 
