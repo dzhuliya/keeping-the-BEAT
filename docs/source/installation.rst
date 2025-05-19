@@ -60,15 +60,26 @@ In our experience, the following instructions worked on a Mac:
     cd PyMultiNest
     python setup.py install
 
-7. You can test your installation following the instructions also listed on `Astrobetter <https://www.astrobetter.com/wiki/MultiNest+Installation+Notes>`_
+7. You can test your MultiNest installation following the instructions also listed on `Astrobetter <https://www.astrobetter.com/wiki/MultiNest+Installation+Notes>`_
 
 
-How to get started
+Simple example fit
 ------------------
-A
-`jupyter notebook <https://github.com/dzhuliya/keeping-the-BEAT/blob/master/keeping-the-BEAT/beat_example.ipynb>`_
-is provided to run through an example fit using
-`files <https://github.com/dzhuliya/keeping-the-BEAT/tree/master/keeping-the-BEAT/spectra>`_
-included when you clone the repository. You can now open the jupyter notebook
-and follow the instructions in the notebook. (additional documentation will be
-added to this page later).
+*Written by: Julia Falcone*
+
+Let's test that BEAT is correctly installed and working properly on your machine. From the top level of the ``keeping-the-BEAT`` repository, navigate to the ``BEAT example fit`` directory and open the ``BEAT example notebook.ipynb`` Jupyter notebook. If you run all cells in this notebook without changing anything, it will take the single spectrum in the ``spectrum`` folder (taken from long-slit observations NGC 7319) and fit it.
+
+It will create a new directory in the current location called ``ngc7319_out,`` which stores the results of the fit. It should produce three PDF files in the ``plots`` folder, which should look like the plots below:
+
+.. image:: ../build/html/_images/NGC7319_0_comps.jpg
+  :width: 33%
+  :alt: figure of test spectrum fit with 0 components
+
+.. image:: ../build/html/_images/NGC7319_1_comp.jpg
+  :width: 33%
+  :alt: figure of test spectrum fit with 1 component
+
+.. image:: ../build/html/_images/NGC7319_2_comps.jpg
+  :width: 33%
+  :alt: figure of test spectrum fit with 2 components
+
