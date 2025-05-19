@@ -1,7 +1,7 @@
 About
 -------
 
-<img src="docs/build/html/_images/beat-img.png" width="70%" />
+<img src="docs/build/html/_images/beat-img.png" />
 
 **Authors:** Travis C. Fischer, others
 
