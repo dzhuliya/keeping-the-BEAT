@@ -9,7 +9,7 @@ In-depth descriptions of BEAT can be found in the following papers: `Fischer et 
 
 
 
-.. image:: ../_images/beat-img.png
+.. image:: ../build/html/_images/beat-img.png
   :width: 700
   :alt: figure of emission line fit with 3
 
