@@ -1,7 +1,11 @@
 About
 -------
 
-<img src="docs/build/html/_images/beat-img.png"/>
+<img src="docs/build/html/_images/beat-img.png" width="70%" />
+
+**Authors:** Travis C. Fischer, others
+
+**Documentation:** Julia Falcone 
 
 The Bayesian Evidence Analysis Tool (BEAT) is a Python-based code for measuring and dissecting multi-component emission lines. BEAT was designed to analyze large numbers of spectra (i.e. large surveys or IFU spectroscopy) automatically and determine the number of physical kinematic components in a given set of emission lines. BEAT utilizes the [MultiNest sampling algorithm](https://github.com/farhanferoz/MultiNest) to compute Bayesian statistics and determine the number of components for each fit.
 
@@ -11,7 +15,7 @@ In-depth descriptions of BEAT can be found in the following papers: [Fischer et 
 
 
 For further information, see the BEAT documentation at
-[keeping-the-beat.readthedocs.io](https://keeping-the-beat.readthedocs.io).
+[beat-docs.readthedocs.io](https://beat-docs.readthedocs.io).
 
 
 <!--Installation
