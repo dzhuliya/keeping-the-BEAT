@@ -3,7 +3,7 @@ About
 
 <img src="docs/build/html/_images/beat-img.png" />
 
-**Authors:** Travis C. Fischer, others
+**Authors:** Travis C. Fischer, Dzhuliya Dashtamirova
 
 **Documentation:** Julia Falcone 
 
