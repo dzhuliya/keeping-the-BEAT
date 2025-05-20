@@ -113,6 +113,7 @@ class Fit(object):
         return all_gauss_functions
 
     def gauss_cont(self, pos1, width1, *args):
+        print('made it here')                                   
         pos_all = []
         width_all = []
         flux_all = []
@@ -120,6 +121,7 @@ class Fit(object):
         args = list(args)
 
         for line in self.known_comps:
+            print('known comps: ', self.known_comps[line])
             lines.append(line)  # keeping track of what lines have been fit
             pos = self.known_comps[line]['cen']
             pos_all.append(pos)
