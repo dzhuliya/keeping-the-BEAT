@@ -3,7 +3,7 @@ Installation
 
 MacOS Systems
 -------------
-*Written by: Dzhuliya Dashtamirova*
+*Contributor: Dzhuliya Dashtamirova*
 
 For the time being you should clone the BEAT repository from our
 `Github page <https://github.com/dzhuliya/keeping-the-BEAT>`_.
@@ -65,11 +65,11 @@ In our experience, the following instructions worked on a Mac:
 
 Simple example fit
 ------------------
-*Written by: Julia Falcone*
+*Contributor: Julia Falcone*
 
 Let's test that BEAT is correctly installed and working properly on your machine. From the top level of the ``keeping-the-BEAT`` repository, navigate to the ``BEAT example fit`` directory and open the ``BEAT example notebook.ipynb`` Jupyter notebook. If you run all cells in this notebook without changing anything, it will take the single spectrum in the ``spectrum`` folder (taken from long-slit observations NGC 7319) and fit it.
 
-It will create a new directory in the current location called ``ngc7319_out,`` which stores the results of the fit. It should produce three PDF files in the ``plots`` folder, which should look like the plots below:
+It will create a new directory in the current location called ``ngc7319_out``, which stores the results of the fit. It should produce three PDF files in the ``plots`` folder, which should look like the plots below:
 
 .. image:: ../build/html/_images/NGC7319_0_comps.jpg
   :width: 45%
